@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { User, Generation, PaymentMethod } from '../types';
 import { supabaseService } from '../services/supabaseService';
@@ -15,22 +16,35 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loadingPay, setLoadingPay] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // New Method Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMethod, setNewMethod] = useState<Partial<PaymentMethod>>({
+    name: '',
+    detail: '',
+    icon: '💳',
+    isActive: true,
+    bankName: '',
+    accountNumber: '',
+    beneficiary: ''
+  });
 
   useEffect(() => {
     if (!user.isAdmin) {
         navigate('/');
         return;
     }
-    const loadData = async () => {
-        const u = await supabaseService.db.getAllUsers();
-        const g = await supabaseService.db.getAllGenerations();
-        const p = await supabaseService.db.getPaymentMethods();
-        setAllUsers(u);
-        setAllGens(g);
-        setPaymentMethods(p);
-    };
     loadData();
   }, [user, navigate]);
+
+  const loadData = async () => {
+    const u = await supabaseService.db.getAllUsers();
+    const g = await supabaseService.db.getAllGenerations();
+    const p = await supabaseService.db.getPaymentMethods();
+    setAllUsers(u);
+    setAllGens(g);
+    setPaymentMethods(p);
+  };
 
   const handleTogglePayment = (methodId: string) => {
     setPaymentMethods(prev => prev.map(p => 
@@ -66,6 +80,36 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
     }
   };
 
+  const handleCreateMethod = async () => {
+    if (!newMethod.name || !newMethod.detail) {
+        alert("Preencha o nome e o detalhe.");
+        return;
+    }
+
+    const method: PaymentMethod = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: newMethod.name!,
+        detail: newMethod.detail!,
+        icon: newMethod.icon || '💳',
+        isActive: true,
+        bankName: newMethod.bankName || '',
+        accountNumber: newMethod.accountNumber || '',
+        beneficiary: newMethod.beneficiary || ''
+    };
+
+    await supabaseService.db.addPaymentMethod(method);
+    await loadData();
+    setShowAddModal(false);
+    setNewMethod({ name: '', detail: '', icon: '💳', isActive: true, bankName: '', accountNumber: '', beneficiary: '' });
+  };
+
+  const handleDeleteMethod = async (id: string) => {
+    if (window.confirm("Tem certeza que deseja remover este método de pagamento?")) {
+        await supabaseService.db.deletePaymentMethod(id);
+        await loadData();
+    }
+  };
+
   const totalRevenue = allUsers.reduce((acc, curr) => {
     if (curr.plan === 'PLUS') return acc + 29;
     if (curr.plan === 'PREMIUM') return acc + 99;
@@ -95,31 +139,58 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
                 <p className="text-xs text-zinc-500">Gestão financeira e contas de recebimento.</p>
             </div>
             
-            <Button 
-                onClick={handleSaveChanges} 
-                isLoading={loadingPay}
-                disabled={!hasUnsavedChanges}
-                className={`${hasUnsavedChanges ? 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-900/20' : 'bg-white/5 opacity-50 cursor-not-allowed'}`}
-            >
-                {loadingPay ? 'Salvando...' : (hasUnsavedChanges ? 'Salvar Alterações' : 'Sincronizado')}
-            </Button>
+            <div className="flex gap-2">
+                <Button 
+                    variant="secondary"
+                    onClick={() => setShowAddModal(true)}
+                    className="text-sm py-2"
+                >
+                    + Novo Método
+                </Button>
+                <Button 
+                    onClick={handleSaveChanges} 
+                    isLoading={loadingPay}
+                    disabled={!hasUnsavedChanges}
+                    className={`${hasUnsavedChanges ? 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-900/20' : 'bg-white/5 opacity-50 cursor-not-allowed'}`}
+                >
+                    {loadingPay ? 'Salvando...' : (hasUnsavedChanges ? 'Salvar Alterações' : 'Sincronizado')}
+                </Button>
+            </div>
         </div>
 
         <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
             {paymentMethods.map(method => (
-                <div key={method.id} className={`p-6 rounded-2xl border transition-all duration-300 ${method.isActive ? 'bg-white/5 border-white/10' : 'bg-red-900/5 border-red-500/10 opacity-60 grayscale-[0.5]'}`}>
+                <div key={method.id} className={`relative p-6 rounded-2xl border transition-all duration-300 group ${method.isActive ? 'bg-white/5 border-white/10' : 'bg-red-900/5 border-red-500/10 opacity-60 grayscale-[0.5]'}`}>
                     
+                    <button 
+                        onClick={() => handleDeleteMethod(method.id)}
+                        className="absolute top-2 right-2 text-zinc-600 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remover Método"
+                    >
+                        🗑️
+                    </button>
+
                     <div className="flex justify-between items-start pb-4 border-b border-white/5 mb-4">
                         <div className="flex items-center gap-4">
-                            <span className="text-3xl bg-[#0a0a0a] p-3 rounded-xl shadow-inner">{method.icon}</span>
+                            <input 
+                                type="text" 
+                                className="text-3xl bg-[#0a0a0a] p-3 rounded-xl shadow-inner w-16 text-center focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                value={method.icon}
+                                onChange={(e) => handleInputChange(method.id, 'icon', e.target.value)}
+                            />
                             <div>
-                                <p className="font-bold text-white text-lg">{method.name}</p>
+                                <input 
+                                    type="text" 
+                                    className="font-bold text-white text-lg bg-transparent border-b border-transparent hover:border-white/20 focus:border-indigo-500 focus:outline-none w-full"
+                                    value={method.name}
+                                    onChange={(e) => handleInputChange(method.id, 'name', e.target.value)}
+                                />
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold ${method.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                                     {method.isActive ? 'Ativo' : 'Inativo'}
                                 </span>
                             </div>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
+                        <label className="relative inline-flex items-center cursor-pointer mr-8">
                             <input 
                                 type="checkbox" 
                                 className="sr-only peer" 
@@ -172,6 +243,76 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
             ))}
         </div>
       </div>
+
+      {/* New Method Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#0f0f0f] rounded-2xl border border-white/10 w-full max-w-md p-6 shadow-2xl">
+                <h3 className="text-xl font-bold text-white mb-6">Adicionar Método de Pagamento</h3>
+                
+                <div className="space-y-4 mb-6">
+                    <div>
+                        <label className="text-xs text-zinc-400 uppercase block mb-1">Nome do Método</label>
+                        <input 
+                            className="glass-input w-full rounded-lg p-2 text-white"
+                            value={newMethod.name}
+                            onChange={e => setNewMethod({...newMethod, name: e.target.value})}
+                            placeholder="Ex: Western Union"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-1">
+                            <label className="text-xs text-zinc-400 uppercase block mb-1">Ícone</label>
+                            <input 
+                                className="glass-input w-full rounded-lg p-2 text-center"
+                                value={newMethod.icon}
+                                onChange={e => setNewMethod({...newMethod, icon: e.target.value})}
+                                placeholder="💸"
+                            />
+                        </div>
+                         <div className="col-span-3">
+                            <label className="text-xs text-zinc-400 uppercase block mb-1">Detalhe (Subtítulo)</label>
+                            <input 
+                                className="glass-input w-full rounded-lg p-2 text-white"
+                                value={newMethod.detail}
+                                onChange={e => setNewMethod({...newMethod, detail: e.target.value})}
+                                placeholder="Ex: Transferência Internacional"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs text-zinc-400 uppercase block mb-1">Banco / Rede</label>
+                        <input 
+                            className="glass-input w-full rounded-lg p-2 text-white"
+                            value={newMethod.bankName}
+                            onChange={e => setNewMethod({...newMethod, bankName: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-zinc-400 uppercase block mb-1">Conta / IBAN / Chave</label>
+                        <input 
+                            className="glass-input w-full rounded-lg p-2 text-white"
+                            value={newMethod.accountNumber}
+                            onChange={e => setNewMethod({...newMethod, accountNumber: e.target.value})}
+                        />
+                    </div>
+                     <div>
+                        <label className="text-xs text-zinc-400 uppercase block mb-1">Beneficiário</label>
+                        <input 
+                            className="glass-input w-full rounded-lg p-2 text-white"
+                            value={newMethod.beneficiary}
+                            onChange={e => setNewMethod({...newMethod, beneficiary: e.target.value})}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <Button variant="secondary" onClick={() => setShowAddModal(false)} className="flex-1">Cancelar</Button>
+                    <Button onClick={handleCreateMethod} className="flex-1">Adicionar</Button>
+                </div>
+            </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="glass-panel rounded-2xl border border-white/10 overflow-hidden">

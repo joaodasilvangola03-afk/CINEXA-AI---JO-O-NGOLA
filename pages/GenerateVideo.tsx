@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { User, Generation, PlanType } from '../types';
+import { User, Generation, PlanType, Voice } from '../types';
 import { PLANS, MOCK_VOICES, LANGUAGES, VIDEO_STYLES, VIDEO_MODELS, MUSIC_STYLES, ASPECT_RATIOS } from '../constants';
 import { Button } from '../components/Button';
 import { geminiService } from '../services/geminiService';
@@ -364,7 +364,7 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                         >
                             {Object.entries(groupedVoices).map(([provider, voices]) => (
                                 <optgroup key={provider} label={provider} className="bg-zinc-900 text-white font-bold">
-                                    {voices.map(v => (
+                                    {(voices as Voice[]).map(v => (
                                         <option key={v.id} value={v.id} className="text-zinc-300 font-normal">
                                             {v.name} ({v.category})
                                         </option>

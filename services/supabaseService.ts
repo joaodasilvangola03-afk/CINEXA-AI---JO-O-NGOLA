@@ -227,6 +227,12 @@ export const supabaseService = {
       return [...MOCK_PAYMENT_METHODS];
     },
 
+    addPaymentMethod: async (method: PaymentMethod) => {
+      await delay(300);
+      MOCK_PAYMENT_METHODS.push(method);
+      return method;
+    },
+
     updatePaymentMethod: async (method: PaymentMethod) => {
       await delay(300);
       const index = MOCK_PAYMENT_METHODS.findIndex(m => m.id === method.id);
@@ -234,6 +240,12 @@ export const supabaseService = {
         MOCK_PAYMENT_METHODS[index] = method;
       }
       return method;
+    },
+
+    deletePaymentMethod: async (id: string) => {
+      await delay(300);
+      MOCK_PAYMENT_METHODS = MOCK_PAYMENT_METHODS.filter(m => m.id !== id);
+      return true;
     }
   }
 };
