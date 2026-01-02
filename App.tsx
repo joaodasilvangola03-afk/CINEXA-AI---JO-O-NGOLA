@@ -13,7 +13,7 @@ import { Pricing } from './pages/Pricing';
 import { AdminPanel } from './pages/AdminPanel';
 import { Profile } from './pages/Profile';
 import { User } from './types';
-import { supabaseService } from '../services/supabaseService';
+import { supabaseService } from './services/supabaseService';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
