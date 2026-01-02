@@ -9,7 +9,7 @@ export const PLANS: Record<PlanType, PlanDetails> = {
     name: 'Free Starter',
     price: 0,
     credits: 10,
-    features: ['Marca d\'água nos vídeos', '720p Qualidade', 'Suporte Básico'],
+    features: ['Marca d\'água nos vídeos', '720p Qualidade', 'Suporte Básico', 'Acesso Limitado aos Modelos'],
     maxVideoDuration: 5,
     hasWatermark: true,
   },
@@ -17,8 +17,16 @@ export const PLANS: Record<PlanType, PlanDetails> = {
     id: PlanType.PLUS,
     name: 'Plus Creator',
     price: 29,
-    credits: 100,
-    features: ['Sem marca d\'água', '1080p Qualidade', 'Vozes Premium', 'Geração Rápida'],
+    credits: 130,
+    features: [
+        'Sem marca d\'água', 
+        'Qualidade Full HD 1080p', 
+        'Licença Comercial (Monetização)',
+        'Vozes Neurais Ultra-Realistas', 
+        'Ferramenta SEO Youtube',
+        'Geração Prioritária (Fila Rápida)',
+        'Histórico Estendido (1 Ano)'
+    ],
     maxVideoDuration: 20,
     hasWatermark: false,
   },
@@ -26,8 +34,17 @@ export const PLANS: Record<PlanType, PlanDetails> = {
     id: PlanType.PREMIUM,
     name: 'Pro Studio',
     price: 99,
-    credits: 500,
-    features: ['4K Qualidade', 'Prioridade Máxima', 'API Access', 'Vídeos de 80min'],
+    credits: 1000,
+    features: [
+        'Qualidade Cinema 4K', 
+        'Renderização Instantânea', 
+        'Acesso à API para Devs', 
+        'Vídeos de até 80min',
+        'Clonagem de Voz (Seu Áudio)',
+        'Acesso Antecipado (Modelos Beta)',
+        'Licença White Label (Revenda)',
+        'Gerente de Conta Dedicado'
+    ],
     maxVideoDuration: 80,
     hasWatermark: false,
   }
@@ -57,46 +74,51 @@ export const THUMBNAIL_MODELS: AIModel[] = [
   { id: 'imagen_3', name: 'Imagen', version: '3.0', provider: 'Google DeepMind', description: 'Rápido e eficiente para thumbnails simples.', isPremium: false },
 ];
 
+// Using reliable Google Sounds samples for preview
+const SAMPLE_MALE = "https://actions.google.com/sounds/v1/speech/male_bass_voice.ogg";
+const SAMPLE_FEMALE = "https://actions.google.com/sounds/v1/speech/commercial_female.ogg";
+const SAMPLE_DEEP = "https://actions.google.com/sounds/v1/horror/male_gasp.ogg"; // Using as deep placeholder
+
 export const MOCK_VOICES: Voice[] = [
   // ElevenLabs
-  { id: 'eleven_turbo_adam', name: 'Adam', category: 'Conversational', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: '' },
-  { id: 'eleven_turbo_rachel', name: 'Rachel', category: 'Narrative', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: '' },
-  { id: 'eleven_turbo_eleven', name: 'Eleven', category: 'Dark/Deep', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: '' },
-  { id: 'eleven_turbo_drew', name: 'Drew', category: 'News Anchor', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: '' },
-  { id: 'eleven_turbo_clyde', name: 'Clyde', category: 'Deep', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: '' },
-  { id: 'eleven_turbo_mimi', name: 'Mimi', category: 'Childish', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: '' },
+  { id: 'eleven_turbo_adam', name: 'Adam', category: 'Conversational', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: SAMPLE_MALE },
+  { id: 'eleven_turbo_rachel', name: 'Rachel', category: 'Narrative', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: SAMPLE_FEMALE },
+  { id: 'eleven_turbo_eleven', name: 'Eleven', category: 'Dark/Deep', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: SAMPLE_DEEP },
+  { id: 'eleven_turbo_drew', name: 'Drew', category: 'News Anchor', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: SAMPLE_MALE },
+  { id: 'eleven_turbo_clyde', name: 'Clyde', category: 'Deep', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: SAMPLE_MALE },
+  { id: 'eleven_turbo_mimi', name: 'Mimi', category: 'Childish', language: 'Multi-lingual', provider: 'ElevenLabs', previewUrl: SAMPLE_FEMALE },
   
   // OpenAI
-  { id: 'openai_alloy', name: 'Alloy', category: 'Neutral', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: '' },
-  { id: 'openai_echo', name: 'Echo', category: 'Warm', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: '' },
-  { id: 'openai_fable', name: 'Fable', category: 'British', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: '' },
-  { id: 'openai_onyx', name: 'Onyx', category: 'Deep/Man', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: '' },
-  { id: 'openai_nova', name: 'Nova', category: 'Energetic', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: '' },
-  { id: 'openai_shimmer', name: 'Shimmer', category: 'Clear', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: '' },
+  { id: 'openai_alloy', name: 'Alloy', category: 'Neutral', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: SAMPLE_MALE },
+  { id: 'openai_echo', name: 'Echo', category: 'Warm', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: SAMPLE_MALE },
+  { id: 'openai_fable', name: 'Fable', category: 'British', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: SAMPLE_MALE },
+  { id: 'openai_onyx', name: 'Onyx', category: 'Deep/Man', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: SAMPLE_MALE },
+  { id: 'openai_nova', name: 'Nova', category: 'Energetic', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: SAMPLE_FEMALE },
+  { id: 'openai_shimmer', name: 'Shimmer', category: 'Clear', language: 'Multi-lingual', provider: 'OpenAI', previewUrl: SAMPLE_FEMALE },
 
   // Google Cloud
-  { id: 'google_journey_f', name: 'Journey (F)', category: 'Storytelling', language: 'Multi-lingual', provider: 'Google Cloud', previewUrl: '' },
-  { id: 'google_journey_m', name: 'Journey (M)', category: 'Storytelling', language: 'Multi-lingual', provider: 'Google Cloud', previewUrl: '' },
-  { id: 'google_studio_f', name: 'Studio Voice A', category: 'Professional', language: 'Multi-lingual', provider: 'Google Cloud', previewUrl: '' },
+  { id: 'google_journey_f', name: 'Journey (F)', category: 'Storytelling', language: 'Multi-lingual', provider: 'Google Cloud', previewUrl: SAMPLE_FEMALE },
+  { id: 'google_journey_m', name: 'Journey (M)', category: 'Storytelling', language: 'Multi-lingual', provider: 'Google Cloud', previewUrl: SAMPLE_MALE },
+  { id: 'google_studio_f', name: 'Studio Voice A', category: 'Professional', language: 'Multi-lingual', provider: 'Google Cloud', previewUrl: SAMPLE_FEMALE },
   
   // Azure AI
-  { id: 'azure_ava', name: 'Ava', category: 'Professional', language: 'Multi-lingual', provider: 'Azure AI', previewUrl: '' },
-  { id: 'azure_andrew', name: 'Andrew', category: 'Warm', language: 'Multi-lingual', provider: 'Azure AI', previewUrl: '' },
-  { id: 'azure_brian', name: 'Brian', category: 'Documentary', language: 'Multi-lingual', provider: 'Azure AI', previewUrl: '' },
+  { id: 'azure_ava', name: 'Ava', category: 'Professional', language: 'Multi-lingual', provider: 'Azure AI', previewUrl: SAMPLE_FEMALE },
+  { id: 'azure_andrew', name: 'Andrew', category: 'Warm', language: 'Multi-lingual', provider: 'Azure AI', previewUrl: SAMPLE_MALE },
+  { id: 'azure_brian', name: 'Brian', category: 'Documentary', language: 'Multi-lingual', provider: 'Azure AI', previewUrl: SAMPLE_MALE },
 
   // Play.ht
-  { id: 'playht_william', name: 'William', category: 'Advertising', language: 'Multi-lingual', provider: 'Play.ht', previewUrl: '' },
-  { id: 'playht_sophia', name: 'Sophia', category: 'Soft', language: 'Multi-lingual', provider: 'Play.ht', previewUrl: '' },
+  { id: 'playht_william', name: 'William', category: 'Advertising', language: 'Multi-lingual', provider: 'Play.ht', previewUrl: SAMPLE_MALE },
+  { id: 'playht_sophia', name: 'Sophia', category: 'Soft', language: 'Multi-lingual', provider: 'Play.ht', previewUrl: SAMPLE_FEMALE },
 
   // Native Specific (Legacy/Standard)
-  { id: 'pt_native_1', name: 'António', category: 'Narrative', language: 'Português', provider: 'Azure AI', previewUrl: '' },
-  { id: 'pt_native_2', name: 'Vitória', category: 'Soft', language: 'Português', provider: 'Azure AI', previewUrl: '' },
-  { id: 'pt_br_native_1', name: 'Brenda', category: 'Commercial', language: 'Português (BR)', provider: 'Google Cloud', previewUrl: '' },
-  { id: 'pt_br_native_2', name: 'Donato', category: 'Deep', language: 'Português (BR)', provider: 'ElevenLabs', previewUrl: '' },
-  { id: 'es_native_1', name: 'Sergio', category: 'Warm', language: 'Spanish', provider: 'OpenAI', previewUrl: '' },
-  { id: 'fr_native_1', name: 'Benoit', category: 'Formal', language: 'French', provider: 'Google Cloud', previewUrl: '' },
-  { id: 'de_native_1', name: 'Gunther', category: 'Authoritative', language: 'German', provider: 'Azure AI', previewUrl: '' },
-  { id: 'jp_native_1', name: 'Kyoko', category: 'Anime', language: 'Japanese', provider: 'Play.ht', previewUrl: '' },
+  { id: 'pt_native_1', name: 'António', category: 'Narrative', language: 'Português', provider: 'Azure AI', previewUrl: SAMPLE_MALE },
+  { id: 'pt_native_2', name: 'Vitória', category: 'Soft', language: 'Português', provider: 'Azure AI', previewUrl: SAMPLE_FEMALE },
+  { id: 'pt_br_native_1', name: 'Brenda', category: 'Commercial', language: 'Português (BR)', provider: 'Google Cloud', previewUrl: SAMPLE_FEMALE },
+  { id: 'pt_br_native_2', name: 'Donato', category: 'Deep', language: 'Português (BR)', provider: 'ElevenLabs', previewUrl: SAMPLE_MALE },
+  { id: 'es_native_1', name: 'Sergio', category: 'Warm', language: 'Spanish', provider: 'OpenAI', previewUrl: SAMPLE_MALE },
+  { id: 'fr_native_1', name: 'Benoit', category: 'Formal', language: 'French', provider: 'Google Cloud', previewUrl: SAMPLE_MALE },
+  { id: 'de_native_1', name: 'Gunther', category: 'Authoritative', language: 'German', provider: 'Azure AI', previewUrl: SAMPLE_MALE },
+  { id: 'jp_native_1', name: 'Kyoko', category: 'Anime', language: 'Japanese', provider: 'Play.ht', previewUrl: SAMPLE_FEMALE },
 ];
 
 export const VIDEO_STYLES = [

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { User, Generation, PlanType, Voice } from '../types';
 import { PLANS, MOCK_VOICES, LANGUAGES, VIDEO_STYLES, VIDEO_MODELS, MUSIC_STYLES, ASPECT_RATIOS } from '../constants';
 import { Button } from '../components/Button';
@@ -30,6 +30,10 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Audio Playback State
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const planLimit = PLANS[user.plan].maxVideoDuration;
 
   const selectedVoice = useMemo(() => 
@@ -39,6 +43,44 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
   const selectedModel = useMemo(() => 
     VIDEO_MODELS.find(m => m.id === modelId) || VIDEO_MODELS[0]
   , [modelId]);
+
+  // Clean up audio when unmounting
+  useEffect(() => {
+    return () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+    };
+  }, []);
+
+  // Stop audio if voice changes
+  useEffect(() => {
+    if (isPlaying && audioRef.current) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+    }
+  }, [voice]);
+
+  const toggleVoicePreview = () => {
+    if (isPlaying) {
+        audioRef.current?.pause();
+        setIsPlaying(false);
+    } else {
+        if (!audioRef.current) {
+            audioRef.current = new Audio();
+            audioRef.current.onended = () => setIsPlaying(false);
+            audioRef.current.onerror = () => {
+                alert("Erro ao reproduzir preview de áudio.");
+                setIsPlaying(false);
+            };
+        }
+        audioRef.current.src = selectedVoice.previewUrl;
+        audioRef.current.volume = 0.8;
+        audioRef.current.play().catch(e => console.error("Play error:", e));
+        setIsPlaying(true);
+    }
+  };
 
   // Group voices by Provider
   const groupedVoices = useMemo(() => {
@@ -356,7 +398,7 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                             {selectedVoice.provider.toUpperCase()}
                          </span>
                     </div>
-                    <div className="relative">
+                    <div className="relative mb-3">
                         <select 
                             value={voice}
                             onChange={(e) => setVoice(e.target.value)}
@@ -374,12 +416,34 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-400">▼</div>
                     </div>
-                    <div className="mt-2 flex items-center gap-2">
-                        <span className="text-xs text-zinc-500">Preview:</span>
-                        <div className="h-1 flex-1 bg-zinc-800 rounded-full overflow-hidden">
-                             <div className="h-full w-1/3 bg-zinc-600 rounded-full"></div>
+                    
+                    {/* Audio Preview Controls */}
+                    <div 
+                        className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${
+                            isPlaying ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-black/20 border-white/5 hover:bg-white/5'
+                        }`}
+                        onClick={toggleVoicePreview}
+                    >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isPlaying ? 'bg-indigo-500 text-white' : 'bg-zinc-700 text-zinc-400'}`}>
+                            {isPlaying ? (
+                                <span className="text-xs">❚❚</span>
+                            ) : (
+                                <span className="text-xs ml-0.5">▶</span>
+                            )}
                         </div>
-                        <span className="text-[10px] text-zinc-500">▶</span>
+                        
+                        <div className="flex-1 flex flex-col justify-center gap-1">
+                            <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider">
+                                <span className={isPlaying ? 'text-indigo-300' : 'text-zinc-500'}>
+                                    {isPlaying ? 'Reproduzindo...' : 'Ouvir Preview'}
+                                </span>
+                                {isPlaying && <span className="text-indigo-400 animate-pulse">● Live</span>}
+                            </div>
+                            {/* Visualizer Bar */}
+                            <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                                 <div className={`h-full rounded-full transition-all duration-300 ${isPlaying ? 'bg-indigo-500 animate-[shimmer_1s_infinite] w-full' : 'bg-zinc-600 w-1/3'}`}></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

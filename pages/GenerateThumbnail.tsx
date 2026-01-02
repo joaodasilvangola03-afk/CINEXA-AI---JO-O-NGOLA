@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, Generation, PlanType } from '../types';
 import { Button } from '../components/Button';
@@ -28,12 +29,17 @@ export const GenerateThumbnail: React.FC<Props> = ({ user, refreshUser }) => {
   const [selectedModelId, setSelectedModelId] = useState(THUMBNAIL_MODELS[0].id);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // New state to show result immediately
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
 
   const styleData = THUMBNAIL_STYLES.find(s => s.id === selectedStyle) || THUMBNAIL_STYLES[0];
   const selectedModel = useMemo(() => THUMBNAIL_MODELS.find(m => m.id === selectedModelId) || THUMBNAIL_MODELS[0], [selectedModelId]);
 
   const handleGenerate = async () => {
     setError(null);
+    setResultUrl(null);
+
     if (!bgPrompt.trim()) {
         setError("Descreva o fundo da sua thumbnail.");
         return;
@@ -86,7 +92,14 @@ export const GenerateThumbnail: React.FC<Props> = ({ user, refreshUser }) => {
             refreshUser();
         }
 
-        navigate('/history');
+        // Set result locally instead of navigating
+        setResultUrl(thumbUrl);
+        
+        // Scroll to result
+        setTimeout(() => {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }, 100);
+
     } catch (e) {
         setError("Erro ao criar thumbnail.");
     } finally {
@@ -105,7 +118,7 @@ export const GenerateThumbnail: React.FC<Props> = ({ user, refreshUser }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto pb-12">
       <div className="mb-8 flex justify-between items-end">
         <div>
             <h1 className="text-3xl font-bold text-white mb-2">Thumbnail Maker ⚡</h1>
@@ -117,7 +130,7 @@ export const GenerateThumbnail: React.FC<Props> = ({ user, refreshUser }) => {
         {/* Left Column: Controls */}
         <div className="lg:col-span-7 space-y-6">
             
-            {/* AI Model Selector - New Section */}
+            {/* AI Model Selector */}
             <div className="glass-panel rounded-2xl p-6 border border-white/10">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                     <span className="w-6 h-6 rounded bg-orange-500/20 text-orange-400 flex items-center justify-center text-xs">1</span>
@@ -223,64 +236,105 @@ export const GenerateThumbnail: React.FC<Props> = ({ user, refreshUser }) => {
             </Button>
         </div>
 
-        {/* Right Column: Live Preview */}
-        <div className="lg:col-span-5">
-            <div className="sticky top-6">
-                <div className="bg-[#0a0a0a] rounded-2xl border border-white/10 p-4 shadow-2xl">
-                    <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-widest flex justify-between">
-                        <span>Preview (Simulação)</span>
-                        <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white">16:9</span>
-                    </h3>
+        {/* Right Column: Live Preview & Result */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+            
+            {/* Final Result Section */}
+            {resultUrl ? (
+                <div className="bg-[#0a0a0a] rounded-2xl border border-indigo-500/50 p-6 shadow-[0_0_50px_rgba(79,70,229,0.15)] animate-[fadeIn_0.5s_ease-out]">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                            <span className="text-indigo-400">✨</span> Resultado Gerado
+                        </h3>
+                        <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded">100% IA</span>
+                    </div>
 
-                    {/* Simulation Canvas */}
-                    <div className="aspect-video w-full bg-zinc-800 rounded-lg relative overflow-hidden group shadow-inner">
-                        {/* Background Placeholder */}
-                        <div className="absolute inset-0 bg-cover bg-center opacity-50 transition-opacity" style={{ 
-                            backgroundImage: 'url(https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000)',
-                            filter: 'blur(2px)'
-                        }}></div>
-                        
-                        {/* Dynamic Overlay based on Style */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center z-10">
-                            
-                            {/* Title Render */}
-                            <h2 
-                                className="text-5xl md:text-6xl font-black text-white uppercase leading-none mb-2 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] transition-all duration-300"
-                                style={{ 
-                                    textShadow: `4px 4px 0px ${styleData.color}, -2px -2px 0 #000`,
-                                    transform: 'rotate(-2deg)'
-                                }}
+                    <div className="relative group rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                        <img 
+                            src={resultUrl} 
+                            alt="Generated Thumbnail" 
+                            className="w-full h-auto object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <a 
+                                href={resultUrl} 
+                                download="thumbnail_cinexa.jpg"
+                                target="_blank"
+                                className="bg-white text-black font-bold py-3 px-6 rounded-full transform scale-90 group-hover:scale-100 transition-all flex items-center gap-2"
                             >
-                                {titleText || "SEU TÍTULO"}
-                            </h2>
-
-                            {/* Subtitle Render */}
-                            {subtitleText && (
-                                <span className="text-xl md:text-2xl font-bold text-white bg-black/80 px-4 py-1 rounded-lg transform rotate-1 border-b-4" style={{ borderColor: styleData.color }}>
-                                    {subtitleText}
-                                </span>
-                            )}
-                        </div>
-
-                        {/* Style Badge overlay */}
-                        <div className="absolute top-4 left-4 flex gap-2">
-                             <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded border border-white/10 text-[10px] font-mono text-zinc-300">
-                                {styleData.name}
-                             </div>
-                             <div className={`backdrop-blur-md px-2 py-1 rounded border border-white/10 text-[10px] font-bold tracking-wide ${getProviderBadgeColor(selectedModel.provider)}`}>
-                                {selectedModel.provider}
-                             </div>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                Baixar Imagem
+                            </a>
                         </div>
                     </div>
-                    
-                    <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/5">
-                        <h4 className="text-xs font-bold text-white mb-2">Poder da IA Escolhida:</h4>
-                        <p className="text-xs text-zinc-400 leading-relaxed">
-                            {selectedModel.description} Para resultados ideais, modelos como <strong>Ideogram</strong> integram o texto diretamente na imagem, enquanto modelos como <strong>Midjourney</strong> focam na beleza visual (o texto pode precisar de ajuste).
-                        </p>
+
+                    <div className="mt-4 flex gap-3">
+                         <Button variant="secondary" onClick={() => navigate('/history')} className="flex-1 text-sm">
+                            Salvar na Galeria
+                         </Button>
+                         <Button variant="primary" onClick={() => {setResultUrl(null); window.scrollTo({top:0, behavior:'smooth'})}} className="flex-1 text-sm">
+                            Criar Nova
+                         </Button>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="sticky top-6">
+                    <div className="bg-[#0a0a0a] rounded-2xl border border-white/10 p-4 shadow-2xl opacity-80">
+                        <h3 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-widest flex justify-between">
+                            <span>Preview (Simulação)</span>
+                            <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white">16:9</span>
+                        </h3>
+
+                        {/* Simulation Canvas */}
+                        <div className="aspect-video w-full bg-zinc-800 rounded-lg relative overflow-hidden group shadow-inner">
+                            {/* Background Placeholder */}
+                            <div className="absolute inset-0 bg-cover bg-center opacity-50 transition-opacity" style={{ 
+                                backgroundImage: 'url(https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000)',
+                                filter: 'blur(2px)'
+                            }}></div>
+                            
+                            {/* Dynamic Overlay based on Style */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center z-10">
+                                
+                                {/* Title Render */}
+                                <h2 
+                                    className="text-5xl md:text-6xl font-black text-white uppercase leading-none mb-2 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] transition-all duration-300"
+                                    style={{ 
+                                        textShadow: `4px 4px 0px ${styleData.color}, -2px -2px 0 #000`,
+                                        transform: 'rotate(-2deg)'
+                                    }}
+                                >
+                                    {titleText || "SEU TÍTULO"}
+                                </h2>
+
+                                {/* Subtitle Render */}
+                                {subtitleText && (
+                                    <span className="text-xl md:text-2xl font-bold text-white bg-black/80 px-4 py-1 rounded-lg transform rotate-1 border-b-4" style={{ borderColor: styleData.color }}>
+                                        {subtitleText}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Style Badge overlay */}
+                            <div className="absolute top-4 left-4 flex gap-2">
+                                <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded border border-white/10 text-[10px] font-mono text-zinc-300">
+                                    {styleData.name}
+                                </div>
+                                <div className={`backdrop-blur-md px-2 py-1 rounded border border-white/10 text-[10px] font-bold tracking-wide ${getProviderBadgeColor(selectedModel.provider)}`}>
+                                    {selectedModel.provider}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/5">
+                            <h4 className="text-xs font-bold text-white mb-2">Poder da IA Escolhida:</h4>
+                            <p className="text-xs text-zinc-400 leading-relaxed">
+                                {selectedModel.description} Para resultados ideais, modelos como <strong>Ideogram</strong> integram o texto diretamente na imagem, enquanto modelos como <strong>Midjourney</strong> focam na beleza visual (o texto pode precisar de ajuste).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
       </div>
     </div>

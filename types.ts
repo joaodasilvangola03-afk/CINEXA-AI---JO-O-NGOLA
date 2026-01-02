@@ -12,6 +12,7 @@ export interface User {
   plan: PlanType;
   credits: number;
   isAdmin: boolean;
+  isActive?: boolean; // New: Controls if user can login
   avatarUrl?: string;
 }
 

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { User, Generation, PaymentMethod } from '../types';
+import { User, Generation, PaymentMethod, PlanType } from '../types';
 import { supabaseService } from '../services/supabaseService';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -17,6 +17,10 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
   const [loadingPay, setLoadingPay] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
+  // User Management State
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
   // New Method Modal State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newMethod, setNewMethod] = useState<Partial<PaymentMethod>>({
@@ -46,6 +50,7 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
     setPaymentMethods(p);
   };
 
+  // --- Payment Handlers ---
   const handleTogglePayment = (methodId: string) => {
     setPaymentMethods(prev => prev.map(p => 
         p.id === methodId ? { ...p, isActive: !p.isActive } : p
@@ -110,6 +115,23 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
     }
   };
 
+  // --- User Management Handlers ---
+  const handleEditUser = (u: User) => {
+      setEditingUser({...u});
+  };
+
+  const handleSaveUser = async () => {
+      if (!editingUser) return;
+      await supabaseService.db.updateUser(editingUser);
+      setEditingUser(null);
+      await loadData(); // Refresh list
+  };
+
+  const filteredUsers = allUsers.filter(u => 
+    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const totalRevenue = allUsers.reduce((acc, curr) => {
     if (curr.plan === 'PLUS') return acc + 29;
     if (curr.plan === 'PREMIUM') return acc + 99;
@@ -132,7 +154,160 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
         <StatCard title="Uptime" value="99.9%" icon="⚡" />
       </div>
 
-      <div className="glass-panel rounded-2xl border border-white/10 overflow-hidden relative">
+      {/* USER MANAGEMENT SECTION */}
+      <div className="glass-panel rounded-2xl border border-white/10 overflow-hidden">
+        <div className="p-6 border-b border-white/5 bg-[#0a0a0a] flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h3 className="font-bold text-white text-lg">Gestão de Usuários</h3>
+                <p className="text-xs text-zinc-500">Controle de acesso, créditos e planos.</p>
+            </div>
+            <div className="relative">
+                <input 
+                    type="text" 
+                    placeholder="Buscar usuário..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="glass-input pl-10 pr-4 py-2 rounded-lg text-sm w-64"
+                />
+                <span className="absolute left-3 top-2.5 text-zinc-500">🔍</span>
+            </div>
+        </div>
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+                <thead className="text-xs text-zinc-500 uppercase bg-white/5">
+                    <tr>
+                        <th className="px-6 py-4">Usuário</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">Plano</th>
+                        <th className="px-6 py-4">Créditos</th>
+                        <th className="px-6 py-4">Admin</th>
+                        <th className="px-6 py-4 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                    {filteredUsers.map(u => (
+                        <tr key={u.id} className="hover:bg-white/5 transition-colors group">
+                            <td className="px-6 py-4 flex items-center gap-3">
+                                <img src={u.avatarUrl} alt="" className="w-8 h-8 rounded-full bg-zinc-800" />
+                                <div>
+                                    <div className="font-medium text-white">{u.name}</div>
+                                    <div className="text-xs text-zinc-500">{u.email}</div>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${u.isActive !== false ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                    {u.isActive !== false ? 'Ativo' : 'Bloqueado'}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className={`px-2 py-1 rounded-md text-[10px] font-bold border ${
+                                    u.plan === 'PREMIUM' ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30' :
+                                    u.plan === 'PLUS' ? 'bg-blue-500/10 text-blue-300 border-blue-500/30' :
+                                    'bg-zinc-500/10 text-zinc-400 border-zinc-500/30'
+                                }`}>
+                                    {u.plan}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4 text-zinc-300 font-mono">
+                                {u.credits.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4">
+                                {u.isAdmin && <span className="text-xs bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded border border-yellow-500/30">Admin</span>}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                                <button 
+                                    onClick={() => handleEditUser(u)}
+                                    className="text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors text-xs font-bold"
+                                >
+                                    Editar / Gerir
+                                </button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+      </div>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#0f0f0f] rounded-2xl border border-white/10 w-full max-w-lg p-6 shadow-2xl">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <span className="text-2xl">👤</span> Editar Usuário
+                </h3>
+                
+                <div className="space-y-5 mb-6">
+                    <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
+                        <img src={editingUser.avatarUrl} alt="" className="w-12 h-12 rounded-full" />
+                        <div>
+                            <div className="font-bold text-white">{editingUser.name}</div>
+                            <div className="text-sm text-zinc-500">{editingUser.email}</div>
+                            <div className="text-xs text-zinc-600 mt-0.5 font-mono">ID: {editingUser.id}</div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs text-zinc-400 uppercase block mb-1">Status da Conta</label>
+                            <select 
+                                className={`glass-input w-full rounded-lg p-2 font-bold ${editingUser.isActive !== false ? 'text-green-400' : 'text-red-400'}`}
+                                value={editingUser.isActive !== false ? 'true' : 'false'}
+                                onChange={(e) => setEditingUser({...editingUser, isActive: e.target.value === 'true'})}
+                            >
+                                <option value="true">✅ Ativo</option>
+                                <option value="false">⛔ Bloqueado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs text-zinc-400 uppercase block mb-1">Privilégio Admin</label>
+                            <select 
+                                className="glass-input w-full rounded-lg p-2 text-white"
+                                value={editingUser.isAdmin ? 'true' : 'false'}
+                                onChange={(e) => setEditingUser({...editingUser, isAdmin: e.target.value === 'true'})}
+                            >
+                                <option value="false">Usuário</option>
+                                <option value="true">Administrador</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs text-zinc-400 uppercase block mb-1">Plano</label>
+                            <select 
+                                className="glass-input w-full rounded-lg p-2 text-white"
+                                value={editingUser.plan}
+                                onChange={(e) => setEditingUser({...editingUser, plan: e.target.value as PlanType})}
+                            >
+                                {Object.values(PlanType).map(p => (
+                                    <option key={p} value={p} className="bg-zinc-900">{p}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs text-zinc-400 uppercase block mb-1">Créditos</label>
+                            <input 
+                                type="number"
+                                className="glass-input w-full rounded-lg p-2 text-white"
+                                value={editingUser.credits}
+                                onChange={(e) => setEditingUser({...editingUser, credits: Number(e.target.value)})}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-white/10">
+                    <Button variant="secondary" onClick={() => setEditingUser(null)} className="flex-1">Cancelar</Button>
+                    <Button onClick={handleSaveUser} className="flex-1">Salvar Alterações</Button>
+                </div>
+            </div>
+        </div>
+      )}
+
+
+      {/* PAYMENT METHODS SECTION */}
+      <div className="glass-panel rounded-2xl border border-white/10 overflow-hidden relative mt-12">
         <div className="p-6 border-b border-white/5 bg-[#0a0a0a] flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h3 className="font-bold text-white text-lg">Gateway de Pagamentos</h3>
@@ -313,64 +488,6 @@ export const AdminPanel: React.FC<Props> = ({ user }) => {
             </div>
         </div>
       )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glass-panel rounded-2xl border border-white/10 overflow-hidden">
-            <div className="p-5 border-b border-white/5 bg-[#0a0a0a]">
-                <h3 className="font-bold text-white">Últimos Registros</h3>
-            </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-zinc-500 uppercase bg-white/5">
-                        <tr>
-                            <th className="px-6 py-4">User</th>
-                            <th className="px-6 py-4">Plan</th>
-                            <th className="px-6 py-4">Credits</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                        {allUsers.slice(0, 5).map(u => (
-                            <tr key={u.id} className="hover:bg-white/5 transition-colors">
-                                <td className="px-6 py-4 text-white font-medium">{u.email}</td>
-                                <td className="px-6 py-4">
-                                    <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">{u.plan}</span>
-                                </td>
-                                <td className="px-6 py-4 text-zinc-300">{u.credits}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div className="glass-panel rounded-2xl border border-white/10 overflow-hidden">
-            <div className="p-5 border-b border-white/5 bg-[#0a0a0a]">
-                <h3 className="font-bold text-white">Log de Gerações</h3>
-            </div>
-             <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-zinc-500 uppercase bg-white/5">
-                        <tr>
-                            <th className="px-6 py-4">Type</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4">Time</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                        {allGens.slice(0, 5).map(g => (
-                            <tr key={g.id} className="hover:bg-white/5 transition-colors">
-                                <td className="px-6 py-4 text-white">{g.type}</td>
-                                <td className="px-6 py-4">
-                                    <span className="text-emerald-400 font-medium text-xs">{g.status}</span>
-                                </td>
-                                <td className="px-6 py-4 text-zinc-400 font-mono text-xs">{new Date(g.createdAt).toLocaleTimeString()}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-      </div>
     </div>
   );
 };

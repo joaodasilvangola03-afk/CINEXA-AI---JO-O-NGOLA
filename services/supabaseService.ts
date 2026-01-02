@@ -1,8 +1,15 @@
 
 import { User, PlanType, Generation, PaymentMethod } from '../types';
 
-// Mock database storage in memory
-let MOCK_USERS: User[] = [
+// STORAGE KEYS
+const DB_KEYS = {
+  USERS: 'cinexa_db_users',
+  GENERATIONS: 'cinexa_db_generations',
+  PAYMENTS: 'cinexa_db_payments'
+};
+
+// INITIAL MOCK DATA (Defaults if storage is empty)
+const DEFAULT_USERS: User[] = [
   {
     id: 'admin_1',
     email: 'joaodasilvangola03@gmail.com',
@@ -10,13 +17,12 @@ let MOCK_USERS: User[] = [
     plan: PlanType.PREMIUM,
     credits: 999999,
     isAdmin: true,
+    isActive: true,
     avatarUrl: 'https://picsum.photos/200'
   }
 ];
 
-let MOCK_GENERATIONS: Generation[] = [];
-
-let MOCK_PAYMENT_METHODS: PaymentMethod[] = [
+const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
   { 
     id: 'card', 
     name: 'Cartão de Crédito/Débito', 
@@ -99,6 +105,24 @@ let MOCK_PAYMENT_METHODS: PaymentMethod[] = [
   }
 ];
 
+// LOAD STATE FROM LOCAL STORAGE
+const loadFromStorage = <T>(key: string, defaults: T): T => {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaults;
+};
+
+// State Variables
+let MOCK_USERS: User[] = loadFromStorage(DB_KEYS.USERS, DEFAULT_USERS);
+let MOCK_GENERATIONS: Generation[] = loadFromStorage(DB_KEYS.GENERATIONS, []);
+let MOCK_PAYMENT_METHODS: PaymentMethod[] = loadFromStorage(DB_KEYS.PAYMENTS, DEFAULT_PAYMENT_METHODS);
+
+// Helper to save state
+const saveToStorage = () => {
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify(MOCK_USERS));
+    localStorage.setItem(DB_KEYS.GENERATIONS, JSON.stringify(MOCK_GENERATIONS));
+    localStorage.setItem(DB_KEYS.PAYMENTS, JSON.stringify(MOCK_PAYMENT_METHODS));
+};
+
 // Helper to simulate network delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -109,13 +133,18 @@ export const supabaseService = {
       
       // Admin backdoor hardcoded as requested
       if (email === 'joaodasilvangola03@gmail.com' && password === 'Netinho29') {
-        const admin = MOCK_USERS.find(u => u.email === email)!;
-        localStorage.setItem('aivision_user', JSON.stringify(admin));
-        return { user: admin, error: null };
+        const admin = MOCK_USERS.find(u => u.email === email);
+        if (admin) {
+            localStorage.setItem('aivision_user', JSON.stringify(admin));
+            return { user: admin, error: null };
+        }
       }
 
       const user = MOCK_USERS.find(u => u.email === email);
       if (user) {
+        if (user.isActive === false) {
+             return { user: null, error: 'Sua conta foi desativada pelo administrador.' };
+        }
         // In a real app, we would hash check password. Here we accept any for non-admin for demo
         localStorage.setItem('aivision_user', JSON.stringify(user));
         return { user, error: null };
@@ -137,10 +166,13 @@ export const supabaseService = {
         plan: PlanType.FREE,
         credits: 10,
         isAdmin: false,
+        isActive: true, // Default to active
         avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`
       };
 
       MOCK_USERS.push(newUser);
+      saveToStorage(); // Persist new user
+      
       localStorage.setItem('aivision_user', JSON.stringify(newUser));
       return { user: newUser, error: null };
     },
@@ -151,7 +183,19 @@ export const supabaseService = {
 
     getSession: () => {
       const stored = localStorage.getItem('aivision_user');
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      
+      const sessionUser = JSON.parse(stored);
+      // Always fetch fresh data from "DB" to ensure credits are up to date
+      const freshUser = MOCK_USERS.find(u => u.id === sessionUser.id);
+      
+      // Check if user was banned while logged in
+      if (freshUser && freshUser.isActive === false) {
+          localStorage.removeItem('aivision_user');
+          return null;
+      }
+
+      return freshUser || sessionUser;
     }
   },
 
@@ -166,6 +210,8 @@ export const supabaseService = {
         const index = MOCK_USERS.findIndex(u => u.id === updatedUser.id);
         if (index !== -1) {
             MOCK_USERS[index] = updatedUser;
+            saveToStorage(); // Persist update
+            
             // Update session if it's the current user
             const session = localStorage.getItem('aivision_user');
             if (session) {
@@ -180,19 +226,24 @@ export const supabaseService = {
     },
     
     updateUserCredits: async (id: string, newCredits: number) => {
-      const user = MOCK_USERS.find(u => u.id === id);
-      if (user) user.credits = newCredits;
-      // Update local storage if current user
-      const currentUser = JSON.parse(localStorage.getItem('aivision_user') || '{}');
-      if (currentUser.id === id) {
-        currentUser.credits = newCredits;
-        localStorage.setItem('aivision_user', JSON.stringify(currentUser));
+      const userIndex = MOCK_USERS.findIndex(u => u.id === id);
+      if (userIndex !== -1) {
+        MOCK_USERS[userIndex].credits = newCredits;
+        saveToStorage(); // Persist credits
+        
+        // Update local storage session if current user
+        const currentUser = JSON.parse(localStorage.getItem('aivision_user') || '{}');
+        if (currentUser.id === id) {
+            currentUser.credits = newCredits;
+            localStorage.setItem('aivision_user', JSON.stringify(currentUser));
+        }
       }
     },
 
     createGeneration: async (gen: Generation) => {
       await delay(300);
       MOCK_GENERATIONS.unshift(gen);
+      saveToStorage(); // Persist new generation
       return gen;
     },
 
@@ -230,6 +281,7 @@ export const supabaseService = {
     addPaymentMethod: async (method: PaymentMethod) => {
       await delay(300);
       MOCK_PAYMENT_METHODS.push(method);
+      saveToStorage(); // Persist payment method
       return method;
     },
 
@@ -238,6 +290,7 @@ export const supabaseService = {
       const index = MOCK_PAYMENT_METHODS.findIndex(m => m.id === method.id);
       if (index !== -1) {
         MOCK_PAYMENT_METHODS[index] = method;
+        saveToStorage(); // Persist payment update
       }
       return method;
     },
@@ -245,6 +298,7 @@ export const supabaseService = {
     deletePaymentMethod: async (id: string) => {
       await delay(300);
       MOCK_PAYMENT_METHODS = MOCK_PAYMENT_METHODS.filter(m => m.id !== id);
+      saveToStorage(); // Persist deletion
       return true;
     }
   }

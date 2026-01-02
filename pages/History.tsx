@@ -25,10 +25,18 @@ export const History: React.FC<Props> = ({ user }) => {
 
   const handleDownload = (e: React.MouseEvent, item: Generation) => {
     e.stopPropagation();
+    
+    // Determine extension based on type for compatibility
+    let extension = 'png'; // Default
+    if (item.type === 'VIDEO') extension = 'mp4';
+    if (item.type === 'IMAGE' || item.type === 'THUMBNAIL') extension = 'jpg';
+
     const link = document.createElement('a');
     link.href = item.url || '';
     link.target = '_blank';
-    link.download = `aivision_${item.type.toLowerCase()}_${item.id}.${item.type === 'VIDEO' ? 'mp4' : 'png'}`;
+    link.download = `cinexa_ai_${item.type.toLowerCase()}_${item.id}.${extension}`;
+    
+    // For base64 data, this works immediately. For external URLs, target=_blank helps.
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -75,7 +83,7 @@ export const History: React.FC<Props> = ({ user }) => {
                     <div className="aspect-video bg-zinc-900 relative overflow-hidden">
                         {item.type === 'VIDEO' ? (
                             <div className="w-full h-full relative group-hover:scale-105 transition-transform duration-700">
-                                {/* Video Thumbnail Placeholder or Actual Video Muted Loop could go here */}
+                                {/* Video Thumbnail Placeholder */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10"></div>
                                 <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
                                      <span className="text-5xl opacity-50">🎬</span>
@@ -185,6 +193,10 @@ export const History: React.FC<Props> = ({ user }) => {
                                 src={selectedItem.url} 
                                 controls 
                                 autoPlay 
+                                playsInline
+                                loop
+                                crossOrigin="anonymous"
+                                preload="metadata"
                                 className="max-h-[50vh] md:max-h-[70vh] w-auto max-w-full shadow-2xl"
                             />
                         ) : (
@@ -206,7 +218,7 @@ export const History: React.FC<Props> = ({ user }) => {
                                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)] mb-4"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                Download
+                                {selectedItem.type === 'VIDEO' ? 'Download MP4' : 'Download JPG'}
                             </button>
 
                             {/* Prompt Info */}

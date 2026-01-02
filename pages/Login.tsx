@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabaseService } from '../services/supabaseService';
 import { Button } from '../components/Button';
@@ -60,7 +61,7 @@ export const Login: React.FC<Props> = ({ onLogin }) => {
           </h1>
           <div className="flex items-center justify-center gap-2 text-zinc-400">
             <span className="h-[1px] w-8 bg-zinc-700"></span>
-            <p className="text-sm tracking-widest uppercase">Criando o futuro visual</p>
+            <p className="text-sm tracking-widest uppercase">Criando o Futuro Visual</p>
             <span className="h-[1px] w-8 bg-zinc-700"></span>
           </div>
         </div>
@@ -116,11 +117,6 @@ export const Login: React.FC<Props> = ({ onLogin }) => {
           >
             {isLogin ? 'Não tem conta? Crie agora' : 'Já tem conta? Faça login'}
           </button>
-        </div>
-        
-        {/* Demo Helper */}
-        <div className="mt-8 pt-6 border-t border-white/5 text-[10px] text-zinc-600 text-center font-mono">
-            <p>Admin: joaodasilvangola03@gmail.com / Netinho29</p>
         </div>
       </div>
     </div>

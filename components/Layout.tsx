@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { User } from '../types';
@@ -47,7 +48,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user }) => {
           <div className="px-4 py-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
                 {/* CINEXA AI Logo Recreation */}
-                <div className="relative w-10 h-10 flex items-center justify-center group">
+                <div className="relative w-10 h-10 flex items-center justify-center group shrink-0">
                     <div className="absolute inset-0 rounded-full border-2 border-transparent bg-gradient-to-r from-cyan-400 to-purple-600 [mask-image:linear-gradient(white,white)] origin-border border-t-cyan-400 border-r-purple-500 shadow-[0_0_15px_rgba(139,92,246,0.5)] opacity-80 group-hover:opacity-100 transition-opacity"></div>
                     <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-purple-600/20 rounded-full blur-md group-hover:blur-lg transition-all"></div>
                     <svg className="w-4 h-4 text-white fill-white ml-1 relative z-10 drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
@@ -56,6 +57,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, user }) => {
                     <h1 className="text-xl font-black tracking-wide text-white uppercase font-['Outfit'] leading-none">
                       CINEXA <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">AI</span>
                     </h1>
+                    <span className="text-[10px] text-zinc-500 font-medium tracking-wide whitespace-nowrap mt-0.5">
+                      Criando o Futuro Visual
+                    </span>
                 </div>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-zinc-400 hover:text-white transition-colors">
@@ -172,7 +176,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, user }) => {
              <button onClick={() => setIsMobileMenuOpen(true)} className="text-zinc-400 p-2 hover:bg-white/5 rounded-lg">
                ☰
              </button>
-             <span className="font-bold text-lg text-white">CINEXA AI</span>
+             <div className="flex flex-col">
+                <span className="font-bold text-lg text-white leading-none">CINEXA AI</span>
+                <span className="text-[9px] text-zinc-500 font-medium">Criando o Futuro Visual</span>
+             </div>
            </div>
            <div className="relative w-8 h-8 flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full border border-cyan-500 bg-gradient-to-tr from-cyan-900 to-purple-900"></div>

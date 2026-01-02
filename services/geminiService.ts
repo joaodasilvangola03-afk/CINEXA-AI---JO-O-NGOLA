@@ -9,19 +9,30 @@ const API_KEY = process.env.API_KEY || '';
 const shouldTryRealApi = !!API_KEY;
 
 // Reliable high-quality assets for fallback/demo
+// Using Google Storage Samples for guaranteed uptime on videos (Format: MP4 H.264)
 const MOCK_VIDEOS = [
-    "https://assets.mixkit.co/videos/preview/mixkit-futuristic-city-traffic-aerial-view-33-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-1610-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-waves-coming-to-the-beach-5016-large.mp4"
-];
-
-const MOCK_IMAGES = [
-    "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1024&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1024&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1024&auto=format&fit=crop"
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
 ];
 
 const getRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+
+// Helper to get dimensions based on aspect ratio string
+const getDimensions = (ratio: string): { width: number, height: number } => {
+    switch(ratio) {
+        case '16:9': return { width: 1280, height: 720 };
+        case '9:16': return { width: 720, height: 1280 };
+        case '4:3': return { width: 1024, height: 768 };
+        case '3:4': return { width: 768, height: 1024 };
+        case '1:1': default: return { width: 1024, height: 1024 };
+    }
+};
 
 export const geminiService = {
   generateText: async (prompt: string): Promise<string> => {
@@ -49,7 +60,6 @@ export const geminiService = {
     if (shouldTryRealApi) {
         try {
             const ai = new GoogleGenAI({ apiKey: API_KEY });
-            // Updated prompt for Dual Engine Optimization (YouTube + Google)
             const seoPrompt = `
                 Act as a World-Class SEO Expert specializing in Video Marketing for both YouTube and Google Search.
                 Context: A video about "${prompt}".
@@ -90,48 +100,66 @@ export const geminiService = {
     };
   },
 
-  generateImage: async (prompt: string, modelId: string = 'imagen_3', aspectRatio: string = '1:1'): Promise<string> => {
-    console.log(`Starting Image Generation: ${modelId} | Ratio: ${aspectRatio}`);
+  generateImage: async (prompt: string, modelId: string = 'imagen_3', aspectRatio: string = '1:1', count: number = 1): Promise<string[]> => {
+    console.log(`Starting Image Generation: ${modelId} | Ratio: ${aspectRatio} | Count: ${count}`);
     
     // Simulate processing time for UX
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 2000 + (count * 500))); // Takes a bit longer for more images
 
     if (shouldTryRealApi) {
         try {
             const ai = new GoogleGenAI({ apiKey: API_KEY });
-            // Note: Adjust model name based on actual availability in your GCP project
             const response = await ai.models.generateImages({
                 model: 'imagen-4.0-generate-001',
                 prompt: prompt,
                 config: {
-                  numberOfImages: 1,
+                  numberOfImages: count,
                   aspectRatio: aspectRatio, 
-                  outputMimeType: 'image/jpeg'
+                  outputMimeType: 'image/jpeg' 
                 }
             });
-            const b64 = response.generatedImages[0].image.imageBytes;
-            return `data:image/jpeg;base64,${b64}`;
+            
+            // Map all generated images to base64 strings
+            return response.generatedImages.map(img => 
+                `data:image/jpeg;base64,${img.image.imageBytes}`
+            );
         } catch (e) {
-            console.error("Real Image Gen Failed, using High-Quality Mock", e);
-            // Fallback continues below
+            console.error("Real Image Gen Failed, using Dynamic Generator", e);
         }
     }
 
-    // Fallback / Mock
-    console.log("Returning HD Mock Image");
-    // Add a random param to ensure browser doesn't cache the same image if user generates twice
-    return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1024&auto=format&fit=crop&sig=${Math.random()}`;
+    // Dynamic Generation Fallback using Pollinations.ai
+    // Generate 'count' distinct URLs with different seeds but same prompt
+    const encodedPrompt = encodeURIComponent(prompt);
+    const { width, height } = getDimensions(aspectRatio);
+    
+    const results: string[] = [];
+    for (let i = 0; i < count; i++) {
+        const seed = Math.floor(Math.random() * 1000000);
+        results.push(`https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`);
+    }
+    
+    return results;
   },
 
   generateThumbnail: async (prompt: string, title: string, style: string, modelId: string = 'ideogram_2'): Promise<string> => {
     console.log(`Starting Thumbnail Generation: ${modelId} | ${style}`);
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 2500));
 
     // Try Real API if key exists
     if (shouldTryRealApi) {
         try {
             const ai = new GoogleGenAI({ apiKey: API_KEY });
-            const modelPrompt = `Thumbnail style ${style}. Text: ${title}. Context: ${prompt}`;
+            // Advanced prompt engineering for thumbnails
+            const modelPrompt = `
+                YouTube Thumbnail, 8k resolution, high impact.
+                Style: ${style}. 
+                Core Subject: ${prompt}.
+                Overlay Text: "${title}".
+                Typography: Big, Bold, Readable, Viral Style, contrasting colors.
+                Lighting: Cinematic, dramatic lighting, high contrast.
+                Composition: Rule of thirds, focus on emotion and text.
+            `;
             
             const response = await ai.models.generateImages({
                 model: 'imagen-4.0-generate-001',
@@ -139,18 +167,23 @@ export const geminiService = {
                 config: {
                     numberOfImages: 1,
                     aspectRatio: '16:9', 
-                    outputMimeType: 'image/jpeg'
+                    outputMimeType: 'image/jpeg' 
                 }
             });
             const b64 = response.generatedImages[0].image.imageBytes;
             return `data:image/jpeg;base64,${b64}`;
         } catch (e) {
-            console.error("Real Thumbnail Gen Failed, using Mock", e);
+            console.error("Real Thumbnail Gen Failed, using Dynamic Generator", e);
         }
     }
 
-    // High quality fallback with Unsplash source matching "tech/gaming" vibes
-    return `https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1280&auto=format&fit=crop&sig=${Math.random()}`;
+    // Dynamic Generation Fallback for Thumbnails
+    // Using Flux model on Pollinations which handles text better
+    const enhancedPrompt = `youtube thumbnail, ${style} style, large text "${title}" written in bold font, ${prompt}, cinematic lighting, 4k, trending on artstation, detailed`;
+    const encodedPrompt = encodeURIComponent(enhancedPrompt);
+    const seed = Math.floor(Math.random() * 1000000);
+
+    return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=720&nologo=true&seed=${seed}&model=flux`;
   },
 
   generateVideo: async (
@@ -163,40 +196,27 @@ export const geminiService = {
   ): Promise<string> => {
     console.log(`Starting Video Generation: ${modelId} | Captions: ${captions} | Music: ${audioConfig?.musicStyle} | Ratio: ${aspectRatio}`);
     
-    // Video generation takes longer, simulate that
     await new Promise(r => setTimeout(r, 4500));
 
     if (shouldTryRealApi) {
         try {
             const ai = new GoogleGenAI({ apiKey: API_KEY });
-            // Using a model name that is more likely to be available in public preview if key is valid
-            // Note: 'veo' models are often whitelisted. If this fails, we catch and mock.
-            // Note: In a real scenario, audioConfig would guide a post-processing step or a specific model param.
             const operation = await ai.models.generateVideos({
                 model: 'veo-3.1-fast-generate-preview',
                 prompt: prompt,
                 config: {
                     aspectRatio: aspectRatio,
-                    // If imageBase64 is present, we would treat it as image-to-video, but ignoring for this simpler signature
                 }
             });
             
-            // In a real app, we would poll 'operation' here. 
-            // Since we can't implement complex polling in this snippet without backend:
             console.log("Video operation started on API (simulated polling for demo)");
-            // If the API actually returned a result immediately (unlikely for video), we'd use it.
-            // For safety in this frontend-only demo, we throw to force fallback if polling isn't implemented.
             throw new Error("Polling not implemented in frontend-only demo");
             
         } catch (e) {
             console.warn("Real Video Gen API failed or not implemented fully. Using HD Mock Video.", e);
-            // Fallback continues below
         }
     }
 
-    // Return a reliable, high-quality video URL (MP4) that works in <video> tags
-    // Unlike Giphy, these Mixkit URLs are standard MP4s.
-    // In a real implementation with audio, we would return a URL to a muxed MP4.
     return getRandom(MOCK_VIDEOS);
   }
 };
