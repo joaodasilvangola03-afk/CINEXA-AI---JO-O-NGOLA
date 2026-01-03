@@ -7,6 +7,7 @@ import { geminiService } from '../services/geminiService';
 import { supabaseService } from '../services/supabaseService';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { SfxSelector } from '../components/SfxSelector';
 
 interface Props {
   user: User;
@@ -23,12 +24,15 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
   const [language, setLanguage] = useState(LANGUAGES[0]);
   const [modelId, setModelId] = useState(VIDEO_MODELS[0].id);
   const [musicStyle, setMusicStyle] = useState(MUSIC_STYLES[0]);
-  const [soundEffects, setSoundEffects] = useState(true);
+  const [selectedSfxId, setSelectedSfxId] = useState<string | null>(null);
   const [captions, setCaptions] = useState(false);
   const [seoEnabled, setSeoEnabled] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(ASPECT_RATIOS[0].id);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // API Key State for Veo
+  const [hasApiKey, setHasApiKey] = useState(false);
 
   // Audio Playback State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -44,19 +48,50 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
     VIDEO_MODELS.find(m => m.id === modelId) || VIDEO_MODELS[0]
   , [modelId]);
 
-  // Clean up audio when unmounting
+  // Check for API Key on mount for Veo compatibility
+  useEffect(() => {
+    const checkKey = async () => {
+        if (process.env.API_KEY) {
+            setHasApiKey(true);
+            return;
+        }
+
+        try {
+            if ((window as any).aistudio && await (window as any).aistudio.hasSelectedApiKey()) {
+                setHasApiKey(true);
+            }
+        } catch(e) {
+            console.log("Key check failed", e);
+        }
+    };
+    checkKey();
+  }, []);
+
+  const handleConnectKey = async () => {
+      try {
+        if ((window as any).aistudio) {
+            await (window as any).aistudio.openSelectKey();
+            setHasApiKey(true);
+        } else {
+            alert("Este ambiente não suporta seleção de chave nativa.");
+        }
+      } catch(e) {
+          console.error("Failed to select key", e);
+      }
+  };
+
   useEffect(() => {
     return () => {
         if (audioRef.current) {
             audioRef.current.pause();
+            audioRef.current.src = "";
             audioRef.current = null;
         }
     };
   }, []);
 
-  // Stop audio if voice changes
   useEffect(() => {
-    if (isPlaying && audioRef.current) {
+    if (audioRef.current) {
         audioRef.current.pause();
         setIsPlaying(false);
     }
@@ -64,42 +99,50 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
 
   const toggleVoicePreview = () => {
     if (isPlaying) {
-        audioRef.current?.pause();
-        setIsPlaying(false);
-    } else {
-        if (!audioRef.current) {
-            audioRef.current = new Audio();
-            audioRef.current.onended = () => setIsPlaying(false);
-            audioRef.current.onerror = () => {
-                alert("Erro ao reproduzir preview de áudio.");
-                setIsPlaying(false);
-            };
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
         }
-        audioRef.current.src = selectedVoice.previewUrl;
-        audioRef.current.volume = 0.8;
-        audioRef.current.play().catch(e => console.error("Play error:", e));
-        setIsPlaying(true);
+        setIsPlaying(false);
+        return;
+    }
+
+    if (audioRef.current) {
+        audioRef.current.pause();
+    }
+    
+    const audio = new Audio();
+    audio.src = selectedVoice.previewUrl;
+    audio.volume = 1.0;
+    
+    audio.onended = () => setIsPlaying(false);
+    audio.onerror = (e) => {
+        setIsPlaying(false);
+        alert(`Erro ao reproduzir voz: ${selectedVoice.name}.`);
+    };
+
+    audioRef.current = audio;
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+        playPromise
+            .then(() => setIsPlaying(true))
+            .catch(error => setIsPlaying(false));
     }
   };
 
-  // Group voices by Provider
   const groupedVoices = useMemo(() => {
-    // Filter voices that match selected language OR are multi-lingual
     const available = MOCK_VOICES.filter(v => {
         if (v.language.includes('Multi-lingual')) return true;
         const langRoot = language.split(' ')[0];
-        // Simple fuzzy match for language
         return v.language.includes(langRoot) || language.includes(v.language);
     });
 
     const groups: Record<string, typeof MOCK_VOICES> = {};
-    
-    // Sort to keep Providers together
     available.forEach(v => {
         if (!groups[v.provider]) groups[v.provider] = [];
         groups[v.provider].push(v);
     });
-
     return groups;
   }, [language]);
 
@@ -115,14 +158,14 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
         return;
     }
 
-    // Check if user has access to premium models
     if (selectedModel.isPremium && user.plan === PlanType.FREE && !user.isAdmin) {
         setError(`${selectedModel.name}: Premium only.`);
         return;
     }
 
-    const cost = Math.ceil(duration / 2);
-    if (user.credits < cost && !user.isAdmin) {
+    // Credits are now checked in the service orchestrator
+    // We just check a basic minimum here
+    if (user.credits < 1 && !user.isAdmin) {
         setError(t('error.credits'));
         return;
     }
@@ -130,14 +173,27 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
     setIsLoading(true);
 
     try {
-        // Parallel execution: Generate Video AND SEO (if enabled)
-        const audioConfig = { musicStyle, soundEffects };
-        const videoPromise = geminiService.generateVideo(prompt, modelId, undefined, captions, audioConfig, aspectRatio);
+        const audioConfig = { musicStyle, sfxId: selectedSfxId };
+        
+        const videoPromise = geminiService.generateVideo(
+            prompt, 
+            style,
+            modelId, 
+            language,
+            voice,
+            undefined, 
+            captions, 
+            audioConfig, 
+            aspectRatio
+        );
+        
         const seoPromise = seoEnabled 
             ? geminiService.generateSEO(prompt, language) 
             : Promise.resolve(undefined);
 
-        const [videoUrl, seoData] = await Promise.all([videoPromise, seoPromise]);
+        const [videoResult, seoData] = await Promise.all([videoPromise, seoPromise]);
+        
+        const { url: videoUrl, captions: generatedCaptions } = videoResult;
 
         if (!videoUrl) throw new Error("URL de vídeo inválida retornada.");
 
@@ -161,21 +217,20 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                 audioConfig,
                 aspectRatio
             },
-            seo: seoData // Attach generated SEO data
+            seo: seoData,
+            captionsText: generatedCaptions
         };
 
         await supabaseService.db.createGeneration(newGen);
-
-        if (!user.isAdmin) {
-            await supabaseService.db.updateUserCredits(user.id, user.credits - cost);
-            refreshUser();
-        }
+        
+        // Refresh credits after generation
+        refreshUser();
         
         navigate('/history');
 
     } catch (e: any) {
         console.error(e);
-        setError("Error. Try again.");
+        setError("Error: Generation failed or insufficient credits.");
     } finally {
         setIsLoading(false);
     }
@@ -202,10 +257,8 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
       
       <div className="glass-panel rounded-2xl p-8 shadow-2xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-            {/* Left Column: Settings */}
             <div className="lg:col-span-7 space-y-8">
                 
-                {/* AI Model Selector */}
                 <div className="space-y-3">
                     <label className="block text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('gen.model')}</label>
                     <div className="relative">
@@ -230,7 +283,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                     </div>
                 </div>
 
-                {/* Prompt */}
                 <div className="space-y-3">
                     <label className="block text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('gen.prompt')}</label>
                     <textarea 
@@ -241,7 +293,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                     />
                 </div>
 
-                {/* Aspect Ratio Selector (NEW) */}
                 <div className="space-y-3">
                     <label className="block text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('gen.aspect')}</label>
                     <div className="grid grid-cols-5 gap-2">
@@ -262,7 +313,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                     </div>
                 </div>
 
-                {/* Duration Slider */}
                 <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-white/5">
                     <div className="flex justify-between items-center">
                         <label className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('gen.duration')}</label>
@@ -283,7 +333,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                     </div>
                 </div>
 
-                {/* Selectors Grid */}
                 <div className="grid grid-cols-2 gap-5">
                     <div className="space-y-2">
                         <label className="block text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('gen.style')}</label>
@@ -313,15 +362,13 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                     </div>
                 </div>
 
-                {/* Audio & Atmosphere Section */}
                 <div className="bg-gradient-to-br from-indigo-900/20 to-zinc-900/50 p-5 rounded-xl border border-white/5">
                     <div className="flex items-center gap-2 mb-4">
                         <span className="text-lg">🎵</span>
                         <label className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('gen.audio.title')}</label>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {/* Music Style */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
                         <div className="space-y-2">
                             <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide">{t('gen.audio.music')}</label>
                             <div className="relative">
@@ -335,29 +382,16 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-400">▼</div>
                             </div>
                         </div>
-
-                        {/* Sound Effects Toggle */}
-                        <div className="space-y-2">
-                             <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide">{t('gen.audio.sfx')}</label>
-                             <div className="bg-black/20 rounded-xl p-2.5 flex items-center justify-between border border-white/5">
-                                <span className="text-sm text-zinc-300 pl-2">{soundEffects ? 'ON (Immersive)' : 'OFF'}</span>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        className="sr-only peer" 
-                                        checked={soundEffects}
-                                        onChange={() => setSoundEffects(!soundEffects)}
-                                    />
-                                    <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                                </label>
-                             </div>
-                        </div>
                     </div>
+
+                    {/* SFX Selector Component */}
+                    <SfxSelector 
+                        selectedSfxId={selectedSfxId} 
+                        onSelect={setSelectedSfxId} 
+                    />
                 </div>
 
-                {/* Features Toggles */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Captions Toggle */}
                     <div className="bg-white/5 rounded-xl p-4 border border-white/5 flex items-center justify-between group cursor-pointer hover:bg-white/10 transition-colors" onClick={() => setCaptions(!captions)}>
                         <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${captions ? 'bg-indigo-500 text-white' : 'bg-zinc-800 text-zinc-500'}`}>
@@ -373,7 +407,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                         </div>
                     </div>
 
-                    {/* SEO Toggle */}
                     <div className="bg-white/5 rounded-xl p-4 border border-white/5 flex items-center justify-between group cursor-pointer hover:bg-white/10 transition-colors" onClick={() => setSeoEnabled(!seoEnabled)}>
                         <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${seoEnabled ? 'bg-emerald-500 text-white' : 'bg-zinc-800 text-zinc-500'}`}>
@@ -390,7 +423,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                     </div>
                 </div>
 
-                {/* Voice Provider Integration */}
                 <div className="bg-gradient-to-br from-zinc-900/50 to-zinc-900/10 p-5 rounded-xl border border-white/5">
                     <div className="flex items-center justify-between mb-4">
                         <label className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">{t('gen.voice')}</label>
@@ -417,7 +449,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-400">▼</div>
                     </div>
                     
-                    {/* Audio Preview Controls */}
                     <div 
                         className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${
                             isPlaying ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-black/20 border-white/5 hover:bg-white/5'
@@ -439,7 +470,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                                 </span>
                                 {isPlaying && <span className="text-indigo-400 animate-pulse">● Live</span>}
                             </div>
-                            {/* Visualizer Bar */}
                             <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
                                  <div className={`h-full rounded-full transition-all duration-300 ${isPlaying ? 'bg-indigo-500 animate-[shimmer_1s_infinite] w-full' : 'bg-zinc-600 w-1/3'}`}></div>
                             </div>
@@ -448,7 +478,6 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                 </div>
             </div>
 
-            {/* Right Column: Preview / Cost */}
             <div className="lg:col-span-5 flex flex-col">
                 <div className="sticky top-6 flex flex-col h-full bg-[#0a0a0a] rounded-2xl p-6 border border-white/10 shadow-2xl shadow-black">
                     <div className="w-full aspect-video rounded-xl bg-zinc-900/50 mb-6 flex items-center justify-center border border-white/5 relative overflow-hidden group">
@@ -460,7 +489,7 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                          {captions && (
                             <div className="absolute bottom-4 left-0 right-0 text-center px-4">
                                 <span className="inline-block bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded text-sm font-medium">
-                                    [Preview]
+                                    [Preview with Auto-Captions]
                                 </span>
                             </div>
                          )}
@@ -492,7 +521,9 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                         </div>
                         <div className="flex justify-between items-center">
                             <span>Audio</span>
-                            <span className="text-white font-medium max-w-[150px] truncate text-right">{musicStyle} {soundEffects ? '+ SFX' : ''}</span>
+                            <span className="text-white font-medium max-w-[150px] truncate text-right">
+                                {musicStyle} {selectedSfxId ? '+ SFX' : ''}
+                            </span>
                         </div>
                          <div className="flex justify-between items-center">
                             <span>{t('gen.captions')}</span>
@@ -515,11 +546,23 @@ export const GenerateVideo: React.FC<Props> = ({ user, refreshUser }) => {
                     )}
 
                     <div className="mt-6 space-y-3">
+                        {!hasApiKey && (selectedModel.id.includes('veo') || true) && (
+                            <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex flex-col gap-3">
+                                <div className="flex items-center gap-2 text-yellow-200 text-xs">
+                                    <span className="text-lg">⚠️</span>
+                                    <span>Geração real de vídeo requer chave API do Google Veo.</span>
+                                </div>
+                                <Button onClick={handleConnectKey} variant="secondary" className="w-full text-xs py-2 bg-yellow-500/20 hover:bg-yellow-500/30 border-yellow-500/30 text-yellow-200">
+                                    Conectar Conta Google Cloud
+                                </Button>
+                            </div>
+                        )}
+
                         <Button 
                             onClick={handleGenerate} 
                             isLoading={isLoading} 
                             className="w-full py-4 text-lg shadow-lg shadow-indigo-900/20"
-                            disabled={user.credits < Math.ceil(duration / 2) && !user.isAdmin}
+                            disabled={(user.credits < Math.ceil(duration / 2) && !user.isAdmin) || (!hasApiKey && (window as any).aistudio)}
                         >
                             {isLoading ? t('gen.loading') : t('gen.submit')}
                         </Button>

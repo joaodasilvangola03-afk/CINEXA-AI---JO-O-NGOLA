@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type Theme = 'cosmic' | 'aurora' | 'inferno';
+export type Theme = 'cosmic' | 'aurora' | 'inferno' | 'cyberpunk' | 'midnight' | 'luxury';
 
 interface ThemeContextType {
   theme: Theme;
@@ -16,7 +16,15 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove('theme-cosmic', 'theme-aurora', 'theme-inferno');
+    // Clean up all possible theme classes
+    root.classList.remove(
+        'theme-cosmic', 
+        'theme-aurora', 
+        'theme-inferno', 
+        'theme-cyberpunk', 
+        'theme-midnight', 
+        'theme-luxury'
+    );
     root.classList.add(`theme-${theme}`);
     localStorage.setItem('aivision_theme', theme);
   }, [theme]);

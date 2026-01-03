@@ -80,6 +80,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user }) => {
                     <option value="en">🇺🇸 English</option>
                     <option value="es">🇪🇸 Español</option>
                     <option value="fr">🇫🇷 Français</option>
+                    <option value="de">🇩🇪 Deutsch</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-zinc-400 text-xs">▼</div>
             </div>
@@ -94,6 +95,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, user }) => {
                     <option value="cosmic">🌌 {t('theme.cosmic')}</option>
                     <option value="aurora">❇️ {t('theme.aurora')}</option>
                     <option value="inferno">🔥 {t('theme.inferno')}</option>
+                    <option value="cyberpunk">⚠️ {t('theme.cyberpunk')}</option>
+                    <option value="midnight">🌑 {t('theme.midnight')}</option>
+                    <option value="luxury">⚜️ {t('theme.luxury')}</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-zinc-400 text-xs">▼</div>
             </div>

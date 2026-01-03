@@ -43,6 +43,9 @@ const translations = {
     'theme.cosmic': 'Cosmic (Padrão)',
     'theme.aurora': 'Aurora (Tech)',
     'theme.inferno': 'Inferno (Criativo)',
+    'theme.cyberpunk': 'Cyberpunk (Neon)',
+    'theme.midnight': 'Midnight (Dark)',
+    'theme.luxury': 'Luxury (Gold)',
     // New Generative Pages
     'gen.video.title': 'Novo Vídeo IA',
     'gen.video.subtitle': 'Escolha o modelo de IA, configure a voz e gere vídeos cinematográficos.',
@@ -129,6 +132,9 @@ const translations = {
     'theme.cosmic': 'Cosmic (Default)',
     'theme.aurora': 'Aurora (Tech)',
     'theme.inferno': 'Inferno (Creative)',
+    'theme.cyberpunk': 'Cyberpunk (Neon)',
+    'theme.midnight': 'Midnight (Dark)',
+    'theme.luxury': 'Luxury (Gold)',
     // New Generative Pages
     'gen.video.title': 'New AI Video',
     'gen.video.subtitle': 'Choose AI model, configure voice, and generate cinematic videos.',
@@ -215,6 +221,9 @@ const translations = {
     'theme.cosmic': 'Cósmico (Predet.)',
     'theme.aurora': 'Aurora (Tech)',
     'theme.inferno': 'Inferno (Creativo)',
+    'theme.cyberpunk': 'Cyberpunk (Neon)',
+    'theme.midnight': 'Medianoche (Dark)',
+    'theme.luxury': 'Lujo (Gold)',
     // New Generative Pages
     'gen.video.title': 'Nuevo Video IA',
     'gen.video.subtitle': 'Elige modelo IA, configura voz y genera videos cinematográficos.',
@@ -298,9 +307,12 @@ const translations = {
     'card.thumb.desc': 'Couvertures virales avec typographie.',
     'common.loading': 'Chargement...',
     'theme.title': 'Thème',
-    'theme.cosmique': 'Cosmique (Défaut)',
+    'theme.cosmic': 'Cosmique (Défaut)',
     'theme.aurora': 'Aurore (Tech)',
     'theme.inferno': 'Inferno (Créatif)',
+    'theme.cyberpunk': 'Cyberpunk (Néon)',
+    'theme.midnight': 'Minuit (Sombre)',
+    'theme.luxury': 'Luxe (Or)',
     // New Generative Pages
     'gen.video.title': 'Nouvelle Vidéo IA',
     'gen.video.subtitle': 'Choisissez le modèle IA, la voix et générez des vidéos cinématographiques.',
@@ -387,6 +399,9 @@ const translations = {
     'theme.cosmic': 'Cosmic (Standard)',
     'theme.aurora': 'Aurora (Tech)',
     'theme.inferno': 'Inferno (Kreativ)',
+    'theme.cyberpunk': 'Cyberpunk (Neon)',
+    'theme.midnight': 'Midnight (Dunkel)',
+    'theme.luxury': 'Luxury (Gold)',
     // New Generative Pages
     'gen.video.title': 'Neues KI-Video',
     'gen.video.subtitle': 'Wähle KI-Modell, Stimme und generiere kinoreife Videos.',

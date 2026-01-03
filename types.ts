@@ -1,4 +1,5 @@
 
+
 export enum PlanType {
   FREE = 'FREE',
   PLUS = 'PLUS',
@@ -12,8 +13,22 @@ export interface User {
   plan: PlanType;
   credits: number;
   isAdmin: boolean;
-  isActive?: boolean; // New: Controls if user can login
+  isActive?: boolean;
   avatarUrl?: string;
+}
+
+export interface LogEntry {
+  id: string;
+  userId: string;
+  aiUsed: string;
+  mode: string;
+  cost: number;
+  creditsLeft: number;
+  timestamp: string;
+}
+
+export interface AiUsageStats {
+  [provider: string]: number;
 }
 
 export interface Generation {
@@ -26,29 +41,30 @@ export interface Generation {
   thumbnailUrl?: string;
   createdAt: string;
   settings: {
-    modelId?: string; // Selected AI Model
-    duration?: number; // in minutes
+    modelId?: string;
+    duration?: number;
     aspectRatio?: string;
     style?: string;
     voiceId?: string;
     language?: string;
-    captions?: boolean; // New: Auto-captions
-    seoEnabled?: boolean; // New: SEO Toggle
-    audioConfig?: { // New: Audio Settings
+    captions?: boolean;
+    seoEnabled?: boolean;
+    audioConfig?: {
         musicStyle: string;
-        soundEffects: boolean;
+        sfxId?: string | null; // Changed from boolean to specific ID
     };
-    textOverlay?: { // New: Thumbnail specific
+    textOverlay?: {
       title: string;
       subtitle: string;
       colorTheme: string;
     };
   };
-  seo?: { // New: SEO Result Data
+  seo?: {
     title: string;
     description: string;
     tags: string[];
   };
+  captionsText?: string;
 }
 
 export interface PlanDetails {
@@ -57,7 +73,7 @@ export interface PlanDetails {
   price: number;
   credits: number;
   features: string[];
-  maxVideoDuration: number; // minutes
+  maxVideoDuration: number;
   hasWatermark: boolean;
 }
 
@@ -70,23 +86,29 @@ export interface Voice {
   provider: string;
 }
 
+export interface SoundEffect {
+  id: string;
+  name: string;
+  category: 'Ação' | 'Ambiente' | 'Sci-Fi' | 'Terror' | 'UI' | 'Natureza';
+  previewUrl: string;
+}
+
 export interface AIModel {
   id: string;
   name: string;
   provider: string;
   version: string;
   description: string;
-  isPremium: boolean; // Requires PLUS/PREMIUM
+  isPremium: boolean;
 }
 
 export interface PaymentMethod {
   id: string;
   name: string;
-  detail: string; // Description like "Instantâneo"
+  detail: string;
   icon: string;
   isActive: boolean;
-  // Banking details for manual transfers
-  bankName?: string;      // e.g., "Banco BAI", "Nubank", "Binance"
-  accountNumber?: string; // e.g., IBAN, Pix Key, Wallet Address
-  beneficiary?: string;   // e.g., "AIVision Ltda"
+  bankName?: string;
+  accountNumber?: string;
+  beneficiary?: string;
 }

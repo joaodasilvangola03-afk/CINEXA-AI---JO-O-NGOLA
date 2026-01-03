@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
+import { Landing } from './pages/Landing'; // Import Landing
 import { Dashboard } from './pages/Dashboard';
 import { GenerateVideo } from './pages/GenerateVideo';
 import { GenerateImage } from './pages/GenerateImage';
@@ -20,6 +21,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false); // New state to toggle Login modal/page
 
   useEffect(() => {
     const session = supabaseService.auth.getSession();
@@ -38,10 +40,15 @@ const App: React.FC = () => {
 
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Loading...</div>;
 
+  // If not logged in
   if (!user) {
-    return <Login onLogin={setUser} />;
+    if (showLogin) {
+        return <Login onLogin={setUser} />;
+    }
+    return <Landing onLoginClick={() => setShowLogin(true)} />;
   }
 
+  // If logged in
   return (
     <LanguageProvider>
       <ThemeProvider>

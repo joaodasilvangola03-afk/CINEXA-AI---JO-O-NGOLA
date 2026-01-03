@@ -13,6 +13,7 @@ export const History: React.FC<Props> = ({ user }) => {
   const [items, setItems] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<Generation | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -23,23 +24,64 @@ export const History: React.FC<Props> = ({ user }) => {
     fetchHistory();
   }, [user.id]);
 
-  const handleDownload = (e: React.MouseEvent, item: Generation) => {
+  const handleDownload = async (e: React.MouseEvent, item: Generation) => {
     e.stopPropagation();
-    
-    // Determine extension based on type for compatibility
-    let extension = 'png'; // Default
-    if (item.type === 'VIDEO') extension = 'mp4';
-    if (item.type === 'IMAGE' || item.type === 'THUMBNAIL') extension = 'jpg';
+    if (downloadingId) return;
 
-    const link = document.createElement('a');
-    link.href = item.url || '';
-    link.target = '_blank';
-    link.download = `cinexa_ai_${item.type.toLowerCase()}_${item.id}.${extension}`;
+    setDownloadingId(item.id);
     
-    // For base64 data, this works immediately. For external URLs, target=_blank helps.
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+        // Determine extension based on type for compatibility
+        let extension = 'png'; // Default
+        if (item.type === 'VIDEO') extension = 'mp4';
+        if (item.type === 'IMAGE' || item.type === 'THUMBNAIL') extension = 'jpg';
+        
+        const filename = `cinexa_ai_${item.type.toLowerCase()}_${item.id}.${extension}`;
+
+        if (item.url?.startsWith('data:')) {
+            const link = document.createElement('a');
+            link.href = item.url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else if (item.url) {
+            // Fetch blob for remote URLs to force download
+            const response = await fetch(item.url);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        console.error('Download failed:', error);
+        // Fallback to opening in new tab
+        if (item.url) window.open(item.url, '_blank');
+    } finally {
+        setDownloadingId(null);
+    }
+  };
+
+  const handleDownloadCaptions = (e: React.MouseEvent, item: Generation) => {
+      e.stopPropagation();
+      if (!item.captionsText) return;
+      
+      const blob = new Blob([item.captionsText], { type: 'text/vtt' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cinexa_ai_captions_${item.id}.vtt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
   };
 
   const copyToClipboard = (text: string) => {
@@ -93,6 +135,11 @@ export const History: React.FC<Props> = ({ user }) => {
                                         <svg className="w-5 h-5 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                     </div>
                                 </div>
+                                {item.captionsText && (
+                                    <div className="absolute top-3 left-3 z-30">
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/60 text-white border border-white/20">CC</span>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="w-full h-full relative group-hover:scale-105 transition-transform duration-700">
@@ -102,20 +149,13 @@ export const History: React.FC<Props> = ({ user }) => {
                         )}
                         
                         {/* Status Badge */}
-                        <div className="absolute top-3 left-3 z-20">
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-md border backdrop-blur-md uppercase tracking-wide ${
+                        <div className="absolute top-3 right-3 z-20 flex gap-2">
+                             <span className={`text-[10px] font-bold px-2 py-1 rounded-md border backdrop-blur-md uppercase tracking-wide ${
                                 item.status === 'COMPLETED' 
                                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
                                 : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
                             }`}>
                                 {item.status}
-                            </span>
-                        </div>
-
-                         {/* Type Badge */}
-                         <div className="absolute top-3 right-3 z-20">
-                            <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-black/40 text-zinc-300 border border-white/10 backdrop-blur-md uppercase tracking-wide">
-                                {item.type}
                             </span>
                         </div>
                     </div>
@@ -141,10 +181,18 @@ export const History: React.FC<Props> = ({ user }) => {
                                 </button>
                                 <button 
                                     onClick={(e) => handleDownload(e, item)}
-                                    className="p-2 rounded-lg bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-600/20 transition-all"
+                                    className="p-2 rounded-lg bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-600/20 transition-all flex items-center justify-center min-w-[36px]"
                                     title="Download"
+                                    disabled={downloadingId === item.id}
                                 >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                    {downloadingId === item.id ? (
+                                        <svg className="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -173,6 +221,9 @@ export const History: React.FC<Props> = ({ user }) => {
                         <span className="text-zinc-400 text-sm truncate max-w-[200px] md:max-w-md">
                             {selectedItem.id}
                         </span>
+                        {selectedItem.captionsText && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white border border-white/20" title="Includes Captions">CC</span>
+                        )}
                     </div>
                     <button 
                         onClick={() => setSelectedItem(null)}
@@ -198,7 +249,17 @@ export const History: React.FC<Props> = ({ user }) => {
                                 crossOrigin="anonymous"
                                 preload="metadata"
                                 className="max-h-[50vh] md:max-h-[70vh] w-auto max-w-full shadow-2xl"
-                            />
+                            >
+                                {selectedItem.captionsText && (
+                                    <track 
+                                        kind="captions" 
+                                        src={URL.createObjectURL(new Blob([selectedItem.captionsText], {type: 'text/vtt'}))} 
+                                        srcLang="en" 
+                                        label="English" 
+                                        default 
+                                    />
+                                )}
+                            </video>
                         ) : (
                             <img 
                                 src={selectedItem.url} 
@@ -213,13 +274,38 @@ export const History: React.FC<Props> = ({ user }) => {
                         <div className="p-6 space-y-6">
                             
                             {/* Actions */}
-                            <button 
-                                onClick={(e) => handleDownload(e, selectedItem)}
-                                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)] mb-4"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                {selectedItem.type === 'VIDEO' ? 'Download MP4' : 'Download JPG'}
-                            </button>
+                            <div className="space-y-2">
+                                <button 
+                                    onClick={(e) => handleDownload(e, selectedItem)}
+                                    disabled={downloadingId === selectedItem.id}
+                                    className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)] disabled:opacity-50 disabled:cursor-wait"
+                                >
+                                    {downloadingId === selectedItem.id ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span>Downloading...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                            <span>{selectedItem.type === 'VIDEO' ? 'Download MP4' : 'Download JPG'}</span>
+                                        </>
+                                    )}
+                                </button>
+                                
+                                {selectedItem.captionsText && (
+                                    <button 
+                                        onClick={(e) => handleDownloadCaptions(e, selectedItem)}
+                                        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-zinc-800 text-zinc-300 font-bold rounded-xl hover:bg-zinc-700 transition-colors border border-white/5"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
+                                        <span>Download Subtitles (.vtt)</span>
+                                    </button>
+                                )}
+                            </div>
 
                             {/* Prompt Info */}
                             <div>

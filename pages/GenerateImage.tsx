@@ -28,7 +28,8 @@ export const GenerateImage: React.FC<Props> = ({ user, refreshUser }) => {
     IMAGE_MODELS.find(m => m.id === modelId) || IMAGE_MODELS[0]
   , [modelId]);
 
-  const cost = numImages; // 1 credit per image
+  // Cost estimate for UI display only (Logic is now in Service)
+  const cost = numImages; 
 
   const handleGenerate = async () => {
     setError(null);
@@ -37,7 +38,7 @@ export const GenerateImage: React.FC<Props> = ({ user, refreshUser }) => {
     if (!prompt.trim()) return;
 
     if (user.credits < cost && !user.isAdmin) {
-        setError(`Créditos insuficientes. Custo: ${cost} créditos.`);
+        setError(`Créditos insuficientes. Custo estimado: ${cost} créditos.`);
         return;
     }
 
@@ -49,10 +50,22 @@ export const GenerateImage: React.FC<Props> = ({ user, refreshUser }) => {
     setIsLoading(true);
     try {
         // Request multiple images
+        // The service orchestrator will handle credit deduction for each provider attempt
         const imgUrls = await geminiService.generateImage(prompt, modelId, aspectRatio, numImages);
         
+        if (!imgUrls || imgUrls.length === 0) {
+            throw new Error("Nenhuma imagem retornada pela API.");
+        }
+
+        // CRITICAL FIX: Show results IMMEDIATELY before attempting storage
+        setResults(imgUrls);
+        
+        // Scroll to results
+        setTimeout(() => {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }, 100);
+
         // Create Generation records for EACH image
-        // This ensures they all appear in history as individual accessible items
         const generationPromises = imgUrls.map(url => {
             const newGen: Generation = {
                 id: Math.random().toString(36).substr(2, 9),
@@ -65,23 +78,21 @@ export const GenerateImage: React.FC<Props> = ({ user, refreshUser }) => {
                 createdAt: new Date().toISOString(),
                 settings: { modelId, aspectRatio }
             };
-            return supabaseService.db.createGeneration(newGen);
+            // Return promise but allow it to fail silently if quota exceeded
+            return supabaseService.db.createGeneration(newGen).catch(err => {
+                console.warn("Failed to save generation to history (Quota likely exceeded):", err);
+            });
         });
 
+        // We await to ensure credits are processed if needed, but errors here won't block UI now
         await Promise.all(generationPromises);
         
-        if (!user.isAdmin) {
-            await supabaseService.db.updateUserCredits(user.id, user.credits - cost);
-            refreshUser();
-        }
-
-        setResults(imgUrls);
-        
-        // Scroll to results
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        // Refresh user to show updated credits deducted by the service
+        refreshUser();
 
     } catch (e) {
-        setError("Erro ao gerar imagens.");
+        console.error(e);
+        setError("Erro ao gerar imagens (Falha no provedor ou créditos insuficientes).");
     } finally {
         setIsLoading(false);
     }
@@ -194,7 +205,7 @@ export const GenerateImage: React.FC<Props> = ({ user, refreshUser }) => {
             
             <div className="flex flex-col items-center gap-4">
                 <Button onClick={handleGenerate} isLoading={isLoading} className="w-full py-4 text-lg shadow-lg shadow-indigo-900/20">
-                    {isLoading ? t('gen.loading') : `Gerar ${numImages} ${numImages > 1 ? 'Variações' : 'Imagem'} (${cost} Créditos)`}
+                    {isLoading ? t('gen.loading') : `Gerar ${numImages} ${numImages > 1 ? 'Variações' : 'Imagem'} (Est. ${cost} Créditos)`}
                 </Button>
                 <p className="text-xs text-zinc-600">
                     Processado via {selectedModel.provider} Cloud

@@ -1,14 +1,16 @@
 
-import { User, PlanType, Generation, PaymentMethod } from '../types';
+import { User, PlanType, Generation, PaymentMethod, LogEntry, AiUsageStats } from '../types';
 
 // STORAGE KEYS
 const DB_KEYS = {
   USERS: 'cinexa_db_users',
   GENERATIONS: 'cinexa_db_generations',
-  PAYMENTS: 'cinexa_db_payments'
+  PAYMENTS: 'cinexa_db_payments',
+  LOGS: 'cinexa_db_logs' // New Log Key
 };
 
 // INITIAL MOCK DATA (Defaults if storage is empty)
+// Matches Python Seed: users=[("user_1","pro",500),("user_2","free",50),("user_3","enterprise",5000)]
 const DEFAULT_USERS: User[] = [
   {
     id: 'admin_1',
@@ -19,6 +21,36 @@ const DEFAULT_USERS: User[] = [
     isAdmin: true,
     isActive: true,
     avatarUrl: 'https://picsum.photos/200'
+  },
+  {
+    id: 'user_1',
+    email: 'user1@cinexa.ai',
+    name: 'Pro User (Python Seed)',
+    plan: PlanType.PLUS, // Maps to "pro"
+    credits: 500,
+    isAdmin: false,
+    isActive: true,
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user1'
+  },
+  {
+    id: 'user_2',
+    email: 'user2@cinexa.ai',
+    name: 'Free User (Python Seed)',
+    plan: PlanType.FREE, // Maps to "free"
+    credits: 50,
+    isAdmin: false,
+    isActive: true,
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user2'
+  },
+  {
+    id: 'user_3',
+    email: 'user3@cinexa.ai',
+    name: 'Enterprise User (Python Seed)',
+    plan: PlanType.PREMIUM, // Maps to "enterprise"
+    credits: 5000,
+    isAdmin: false,
+    isActive: true,
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user3'
   }
 ];
 
@@ -107,20 +139,44 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
 
 // LOAD STATE FROM LOCAL STORAGE
 const loadFromStorage = <T>(key: string, defaults: T): T => {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : defaults;
+    try {
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : defaults;
+    } catch (e) {
+        console.error(`Error loading key ${key}`, e);
+        return defaults;
+    }
 };
 
 // State Variables
 let MOCK_USERS: User[] = loadFromStorage(DB_KEYS.USERS, DEFAULT_USERS);
 let MOCK_GENERATIONS: Generation[] = loadFromStorage(DB_KEYS.GENERATIONS, []);
 let MOCK_PAYMENT_METHODS: PaymentMethod[] = loadFromStorage(DB_KEYS.PAYMENTS, DEFAULT_PAYMENT_METHODS);
+let MOCK_LOGS: LogEntry[] = loadFromStorage(DB_KEYS.LOGS, []);
 
 // Helper to save state
 const saveToStorage = () => {
-    localStorage.setItem(DB_KEYS.USERS, JSON.stringify(MOCK_USERS));
-    localStorage.setItem(DB_KEYS.GENERATIONS, JSON.stringify(MOCK_GENERATIONS));
-    localStorage.setItem(DB_KEYS.PAYMENTS, JSON.stringify(MOCK_PAYMENT_METHODS));
+    try {
+        localStorage.setItem(DB_KEYS.USERS, JSON.stringify(MOCK_USERS));
+        localStorage.setItem(DB_KEYS.PAYMENTS, JSON.stringify(MOCK_PAYMENT_METHODS));
+        localStorage.setItem(DB_KEYS.LOGS, JSON.stringify(MOCK_LOGS));
+        localStorage.setItem(DB_KEYS.GENERATIONS, JSON.stringify(MOCK_GENERATIONS));
+    } catch (e) {
+        console.warn("LocalStorage Limit Reached. Attempting cleanup...", e);
+        try {
+            // Strategy: Keep only the most recent 5 items if storage is full
+            // This prevents the app from crashing due to large Base64 images
+            if (MOCK_GENERATIONS.length > 5) {
+                const emergencyGenerations = MOCK_GENERATIONS.slice(0, 5);
+                localStorage.setItem(DB_KEYS.GENERATIONS, JSON.stringify(emergencyGenerations));
+                // Sync memory to avoid confusion
+                MOCK_GENERATIONS = emergencyGenerations;
+                console.log("Cleanup successful: Retained last 5 generations.");
+            }
+        } catch (fatalError) {
+            console.error("Critical Storage Error: Could not save data even after cleanup.", fatalError);
+        }
+    }
 };
 
 // Helper to simulate network delay
@@ -145,7 +201,6 @@ export const supabaseService = {
         if (user.isActive === false) {
              return { user: null, error: 'Sua conta foi desativada pelo administrador.' };
         }
-        // In a real app, we would hash check password. Here we accept any for non-admin for demo
         localStorage.setItem('aivision_user', JSON.stringify(user));
         return { user, error: null };
       }
@@ -205,6 +260,7 @@ export const supabaseService = {
       return MOCK_USERS.find(u => u.id === id);
     },
 
+    // Updated to support direct credit sync
     updateUser: async (updatedUser: User) => {
         await delay(500);
         const index = MOCK_USERS.findIndex(u => u.id === updatedUser.id);
@@ -238,6 +294,38 @@ export const supabaseService = {
             localStorage.setItem('aivision_user', JSON.stringify(currentUser));
         }
       }
+    },
+
+    // New Analytics Logger (Redis/Postgres Sim)
+    logUsage: async (userId: string, aiUsed: string, mode: string, cost: number) => {
+        const timestamp = new Date().toISOString();
+        const user = MOCK_USERS.find(u => u.id === userId);
+        const logEntry: LogEntry = {
+            id: Math.random().toString(36).substr(2, 9),
+            userId,
+            aiUsed,
+            mode,
+            cost,
+            creditsLeft: user ? user.credits : 0,
+            timestamp
+        };
+        MOCK_LOGS.unshift(logEntry);
+        saveToStorage();
+        console.log(`[CINEXA ENGINE] Logged usage: ${aiUsed} (${mode}) -${cost} by ${userId}`);
+    },
+
+    getLogs: async () => {
+        await delay(200);
+        return [...MOCK_LOGS];
+    },
+
+    getAiUsage: async (): Promise<AiUsageStats> => {
+        await delay(200);
+        const usage: AiUsageStats = {};
+        MOCK_LOGS.forEach(log => {
+            usage[log.aiUsed] = (usage[log.aiUsed] || 0) + 1;
+        });
+        return usage;
     },
 
     createGeneration: async (gen: Generation) => {
